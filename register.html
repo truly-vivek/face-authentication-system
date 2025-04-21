@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register with Face</title>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #video {
+            width: 400px;
+            height: 300px;
+            background-color: #f0f0f0;
+            margin: 20px auto;
+            display: block;
+        }
+        #canvas {
+            display: none;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        input {
+            padding: 10px;
+            width: 300px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Register Your Face</h1>
+    
+    <div class="form-group">
+        <input type="text" id="username" placeholder="Choose a username" required>
+    </div>
+    
+    <video id="video" autoplay muted></video>
+    <canvas id="canvas"></canvas>
+    
+    <div>
+        <button id="capture">Capture Face</button>
+        <button id="register" disabled>Complete Registration</button>
+    </div>
+    
+    <p>Already have an account? <a href="login.html">Login here</a></p>
+    
+    <script>
+        let faceDescriptor = null;
+        
+        // Load face-api.js models
+        async function loadModels() {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+            startVideo();
+        }
+        
+        // Start video stream
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    const video = document.getElementById('video');
+                    video.srcObject = stream;
+                })
+                .catch(err => console.error(err));
+        }
+        
+        // Capture face
+        document.getElementById('capture').addEventListener('click', async () => {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const displaySize = { width: video.width, height: video.height };
+            
+            faceapi.matchDimensions(canvas, displaySize);
+            
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+            
+            if (detection) {
+                canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                faceapi.draw.drawDetections(canvas, detection);
+                faceapi.draw.drawFaceLandmarks(canvas, detection);
+                
+                faceDescriptor = detection.descriptor;
+                document.getElementById('register').disabled = false;
+                alert("Face captured successfully!");
+            } else {
+                alert("No face detected. Please try again.");
+            }
+        });
+        
+        // Register user
+        document.getElementById('register').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            
+            if (!username) {
+                alert("Please enter a username");
+                return;
+            }
+            
+            if (!faceDescriptor) {
+                alert("Please capture your face first");
+                return;
+            }
+            
+            // In a real app, you would send this to your backend
+            const userData = {
+                username: username,
+                faceDescriptor: Array.from(faceDescriptor) // Convert Float32Array to regular array
+            };
+            
+            // Simulate API call
+            try {
+                // This would be a fetch() to your backend in a real app
+                localStorage.setItem(username, JSON.stringify(userData));
+                alert("Registration successful!");
+                window.location.href = "dashboard.html";
+            } catch (error) {
+                console.error("Registration failed:", error);
+                alert("Registration failed. Please try again.");
+            }
+        });
+        
+        // Initialize
+        window.addEventListener('load', loadModels);
+    </script>
+</body>
+</html>

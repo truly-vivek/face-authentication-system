@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Authentication System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 450px;
+      padding: 30px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #1877f2;
+      margin-bottom: 20px;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .active {
+      display: block;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #444;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #1877f2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #166fe5;
+    }
+
+    .secondary-btn {
+      background-color: #42b72a;
+    }
+
+    .secondary-btn:hover {
+      background-color: #36a420;
+    }
+
+    .neutral-btn {
+      background-color: #e4e6eb;
+      color: #444;
+    }
+
+    .neutral-btn:hover {
+      background-color: #d8dadf;
+    }
+
+    .face-container {
+      position: relative;
+      width: 320px;
+      height: 240px;
+      margin: 20px auto;
+      border: 3px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .face-instructions {
+      margin: 10px 0;
+      color: #666;
+    }
+
+    #video, #canvas {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #canvas {
+      z-index: 10;
+    }
+
+    .welcome-message {
+      margin: 20px 0;
+      font-size: 24px;
+      color: #1877f2;
+    }
+
+    .user-face {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      margin: 20px auto;
+      border: 3px solid #1877f2;
+      object-fit: cover;
+    }
+
+    .error {
+      color: #c00;
+      margin-top: 5px;
+      font-size: 14px;
+    }
+
+    .user-info {
+      margin: 15px 0;
+      padding: 15px;
+      background-color: #f7f8fa;
+      border-radius: 8px;
+      text-align: left;
+    }
+
+    .user-info p {
+      margin: 5px 0;
+    }
+
+    .loading {
+      display: none;
+      margin: 10px 0;
+      color: #666;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .navigation {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+
+    .navigation button {
+      width: 48%;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Page -->
+  <div class="container">
+    <div id="loginPage" class="page active">
+      <h1>Face Login</h1>
+      <div class="face-container">
+        <video id="loginVideo" autoplay muted></video>
+        <canvas id="loginCanvas"></canvas>
+      </div>
+      <p class="face-instructions">Look at the camera for face recognition</p>
+      <div id="loginLoading" class="loading">Recognizing face...</div>
+      <div id="loginError" class="error"></div>
+      <button id="loginBtn" class="secondary-btn">Login with Face</button>
+      <div class="navigation">
+        <button id="goToRegisterBtn" class="neutral-btn">Register</button>
+      </div>
+    </div>
+
+    <!-- Register Page -->
+    <div id="registerPage" class="page">
+      <h1>Face Registration</h1>
+      <div class="input-group">
+        <label for="registerName">Full Name</label>
+        <input type="text" id="registerName" placeholder="Enter your name">
+      </div>
+      <div class="input-group">
+        <label for="registerEmail">Email</label>
+        <input type="email" id="registerEmail" placeholder="Enter your email">
+      </div>
+      <div class="face-container">
+        <video id="registerVideo" autoplay muted></video>
+        <canvas id="registerCanvas"></canvas>
+      </div>
+      <p class="face-instructions">Look at the camera to capture your face</p>
+      <div id="registerLoading" class="loading">Processing...</div>
+      <div id="registerError" class="error"></div>
+      <button id="captureBtn">Capture Face</button>
+      <button id="registerBtn" class="secondary-btn" disabled>Complete Registration</button>
+      <div class="navigation">
+        <button id="backToLoginBtn" class="neutral-btn">Back to Login</button>
+      </div>
+    </div>
+
+    <!-- Welcome Page -->
+    <div id="welcomePage" class="page">
+      <h1>Welcome!</h1>
+      <p class="welcome-message">Hello, <span id="welcomeName"></span>!</p>
+      <img id="userFace" class="user-face" src="/api/placeholder/150/150" alt="Your face">
+      <div class="user-info">
+        <p><strong>Name:</strong> <span id="profileName"></span></p>
+        <p><strong>Email:</strong> <span id="profileEmail"></span></p>
+        <p><strong>Logged in at:</strong> <span id="loginTime"></span></p>
+      </div>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <script>
+    // DOM Elements
+    const loginPage = document.getElementById('loginPage');
+    const registerPage = document.getElementById('registerPage');
+    const welcomePage = document.getElementById('welcomePage');
+
+    const loginVideo = document.getElementById('loginVideo');
+    const loginCanvas = document.getElementById('loginCanvas');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+    const loginLoading = document.getElementById('loginLoading');
+
+    const registerVideo = document.getElementById('registerVideo');
+    const registerCanvas = document.getElementById('registerCanvas');
+    const registerName = document.getElementById('registerName');
+    const registerEmail = document.getElementById('registerEmail');
+    const captureBtn = document.getElementById('captureBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const registerError = document.getElementById('registerError');
+    const registerLoading = document.getElementById('registerLoading');
+
+    const welcomeName = document.getElementById('welcomeName');
+    const profileName = document.getElementById('profileName');
+    const profileEmail = document.getElementById('profileEmail');
+    const loginTime = document.getElementById('loginTime');
+    const userFace = document.getElementById('userFace');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    const goToRegisterBtn = document.getElementById('goToRegisterBtn');
+    const backToLoginBtn = document.getElementById('backToLoginBtn');
+
+    // Global Variables
+    let currentStream = null;
+    let registeredUsers = JSON.parse(localStorage.getItem('faceUsers')) || [];
+    let capturedFaceDescriptor = null;
+    let faceDetectionInterval = null;
+    let faceMatcher = null;
+
+    // Initialize face-api.js
+    async function initFaceAPI() {
+      try {
+        await faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdnjs.cloudflare.com/ajax/libs/face-api.js/models');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdnjs.cloudflare.com/ajax/libs/face-api.js/models');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdnjs.cloudflare.com/ajax/libs/face-api.js/models');
+        console.log('Face API models loaded successfully');
+        
+        // Create face matcher if there are registered users
+        if (registeredUsers.length > 0) {
+          const labeledDescriptors = registeredUsers.map(user => {
+            return new faceapi.LabeledFaceDescriptors(
+              user.email,
+              [new Float32Array(Object.values(user.faceDescriptor))]
+            );
+          });
+          faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
+        }
+      } catch (error) {
+        console.error('Error loading Face API models:', error);
+        loginError.textContent = 'Could not load face recognition. Please try again later.';
+        registerError.textContent = 'Could not load face recognition. Please try again later.';
+      }
+    }
+
+    // Start video stream
+    async function startVideo(videoElement) {
+      try {
+        // Stop any existing stream
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Start new stream
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: 320,
+            height: 240,
+            facingMode: 'user'
+          }
+        });
+        videoElement.srcObject = currentStream;
+        return true;
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        return false;
+      }
+    }
+
+    // Stop video stream
+    function stopVideo() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+      
+      if (faceDetectionInterval) {
+        clearInterval(faceDetectionInterval);
+        faceDetectionInterval = null;
+      }
+    }
+
+    // Show specific page
+    function showPage(pageId) {
+      // Hide all pages
+      loginPage.classList.remove('active');
+      registerPage.classList.remove('active');
+      welcomePage.classList.remove('active');
+      
+      // Show specified page
+      document.getElementById(pageId).classList.add('active');
+      
+      // Stop any active video stream
+      stopVideo();
+      
+      // Start video if needed
+      if (pageId === 'loginPage') {
+        startVideo(loginVideo);
+        startFaceDetection('login');
+      } else if (pageId === 'registerPage') {
+        startVideo(registerVideo);
+      }
+    }
+
+    // Start face detection interval
+    function startFaceDetection(mode) {
+      const video = mode === 'login' ? loginVideo : registerVideo;
+      const canvas = mode === 'login' ? loginCanvas : registerCanvas;
+      
+      if (faceDetectionInterval) {
+        clearInterval(faceDetectionInterval);
+      }
+      
+      faceDetectionInterval = setInterval(async () => {
+        if (video.paused || video.ended || !currentStream) return;
+        
+        const detections = await faceapi.detectAllFaces(video)
+          .withFaceLandmarks()
+          .withFaceDescriptors();
+          
+        // Draw detections on canvas
+        const dimensions = { width: video.width, height: video.height };
+        const displaySize = { width: canvas.width, height: canvas.height };
+        
+        if (canvas.width === 0) {
+          canvas.width = video.width;
+          canvas.height = video.height;
+        }
+        
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (detections.length > 0) {
+          const resizedDetections = faceapi.resizeResults(detections, displaySize);
+          faceapi.draw.drawDetections(canvas, resizedDetections);
+          
+          if (mode === 'login' && faceMatcher) {
+            const detection = detections[0];
+            const result = faceMatcher.findBestMatch(detection.descriptor);
+            
+            if (result.label !== 'unknown' && result.distance < 0.6) {
+              clearInterval(faceDetectionInterval);
+              
+              const user = registeredUsers.find(user => user.email === result.label);
+              if (user) {
+                loginUser(user);
+              }
+            }
+          }
+        }
+      }, 100);
+    }
+
+    // Capture face for registration
+    async function captureFace() {
+      registerLoading.style.display = 'block';
+      registerError.textContent = '';
+      
+      try {
+        const detections = await faceapi.detectAllFaces(registerVideo)
+          .withFaceLandmarks()
+          .withFaceDescriptors();
+
+        if (detections.length === 0) {
+          registerError.textContent = 'No face detected. Please position your face clearly.';
+          registerLoading.style.display = 'none';
+          return false;
+        }
+        
+        if (detections.length > 1) {
+          registerError.textContent = 'Multiple faces detected. Please ensure only your face is visible.';
+          registerLoading.style.display = 'none';
+          return false;
+        }
+        
+        // Save face descriptor
+        capturedFaceDescriptor = detections[0].descriptor;
+        
+        // Create a snapshot of the face for display
+        const canvas = document.createElement('canvas');
+        canvas.width = registerVideo.width;
+        canvas.height = registerVideo.height;
+        canvas.getContext('2d').drawImage(registerVideo, 0, 0, canvas.width, canvas.height);
+        
+        // Enable register button
+        registerBtn.disabled = false;
+        registerLoading.style.display = 'none';
+        
+        return true;
+      } catch (error) {
+        console.error('Error capturing face:', error);
+        registerError.textContent = 'Error capturing face. Please try again.';
+        registerLoading.style.display = 'none';
+        return false;
+      }
+    }
+
+    // Register new user
+    function registerUser() {
+      const name = registerName.value.trim();
+      const email = registerEmail.value.trim();
+      
+      // Validate inputs
+      if (!name) {
+        registerError.textContent = 'Please enter your name';
+        return;
+      }
+      
+      if (!email) {
+        registerError.textContent = 'Please enter your email';
+        return;
+      }
+      
+      if (!capturedFaceDescriptor) {
+        registerError.textContent = 'Please capture your face first';
+        return;
+      }
+
+      // Check if email already exists
+      if (registeredUsers.some(user => user.email === email)) {
+        registerError.textContent = 'This email is already registered';
+        return;
+      }
+      
+      // Create new user object
+      const newUser = {
+        name,
+        email,
+        faceDescriptor: Object.assign({}, capturedFaceDescriptor),
+        registeredAt: new Date().toISOString()
+      };
+      
+      // Add to users array
+      registeredUsers.push(newUser);
+      
+      // Save to localStorage
+      localStorage.setItem('faceUsers', JSON.stringify(registeredUsers));
+      
+      // Update face matcher
+      const labeledDescriptors = registeredUsers.map(user => {
+        return new faceapi.LabeledFaceDescriptors(
+          user.email,
+          [new Float32Array(Object.values(user.faceDescriptor))]
+        );
+      });
+      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
+      
+      // Reset form
+      registerName.value = '';
+      registerEmail.value = '';
+      capturedFaceDescriptor = null;
+      registerBtn.disabled = true;
+      
+      // Show success message and redirect to login
+      alert('Registration successful! You can now login with your face.');
+      showPage('loginPage');
+    }
+
+    // Login user
+    function loginUser(user) {
+      // Update welcome page info
+      welcomeName.textContent = user.name;
+      profileName.textContent = user.name;
+      profileEmail.textContent = user.email;
+      loginTime.textContent = new Date().toLocaleString();
+      
+      // Create face image from video
+      const canvas = document.createElement('canvas');
+      canvas.width = loginVideo.width;
+      canvas.height = loginVideo.height;
+      canvas.getContext('2d').drawImage(loginVideo, 0, 0, canvas.width, canvas.height);
+      userFace.src = canvas.toDataURL('image/jpeg');
+      
+      // Show welcome page
+      showPage('welcomePage');
+    }
+
+    // Manual login attempt
+    async function attemptLogin() {
+      // Check if there are registered users
+      if (registeredUsers.length === 0) {
+        loginError.textContent = 'No registered users. Please register first.';
+        return;
+      }
+      
+      loginLoading.style.display = 'block';
+      loginError.textContent = '';
+      
+      try {
+        const detections = await faceapi.detectAllFaces(loginVideo)
+          .withFaceLandmarks()
+          .withFaceDescriptors();
+        
+        if (detections.length === 0) {
+          loginError.textContent = 'No face detected. Please position your face clearly.';
+          loginLoading.style.display = 'none';
+          return;
+        }
+        
+        if (detections.length > 1) {
+          loginError.textContent = 'Multiple faces detected. Please ensure only your face is visible.';
+          loginLoading.style.display = 'none';
+          return;
+        }
+        
+        // Match face
+        const detection = detections[0];
+        const result = faceMatcher.findBestMatch(detection.descriptor);
+        
+        if (result.label !== 'unknown' && result.distance < 0.6) {
+          const user = registeredUsers.find(user => user.email === result.label);
+          if (user) {
+            loginUser(user);
+          }
+        } else {
+          loginError.textContent = 'Face not recognized. Please try again or register.';
+        }
+        
+        loginLoading.style.display = 'none';
+      } catch (error) {
+        console.error('Error during login:', error);
+        loginError.textContent = 'Error during login. Please try again.';
+        loginLoading.style.display = 'none';
+      }
+    }
+
+    // Event Listeners
+    window.addEventListener('DOMContentLoaded', () => {
+      initFaceAPI().then(() => {
+        // Start with login page
+        showPage('loginPage');
+      });
+    });
+
+    // Navigation buttons
+    goToRegisterBtn.addEventListener('click', () => showPage('registerPage'));
+    backToLoginBtn.addEventListener('click', () => showPage('loginPage'));
+    logoutBtn.addEventListener('click', () => showPage('loginPage'));
+
+    // Face capture and registration
+    captureBtn.addEventListener('click', captureFace);
+    registerBtn.addEventListener('click', registerUser);
+    
+    // Login button
+    loginBtn.addEventListener('click', attemptLogin);
+  </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+        .welcome {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .logout {
+            background-color: #db4437;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome" id="welcomeMessage">
+        Welcome to your dashboard!
+    </div>
+    
+    <p>This is your protected content area.</p>
+    
+    <button class="logout" onclick="logout()">Logout</button>
+    
+    <script>
+        // Check if user is logged in
+        window.addEventListener('load', () => {
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+            
+            if (!currentUser) {
+                alert("Please login first");
+                window.location.href = "login.html";
+                return;
+            }
+            
+            document.getElementById('welcomeMessage').textContent = 
+                `Welcome, ${currentUser.username}!`;
+        });
+        
+        // Logout function
+        function logout() {
+            sessionStorage.removeItem('currentUser');
+            window.location.href = "index.html";
+        }
+    </script>
+</body>
+</html>

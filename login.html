@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login with Face</title>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #video {
+            width: 400px;
+            height: 300px;
+            background-color: #f0f0f0;
+            margin: 20px auto;
+            display: block;
+        }
+        #canvas {
+            display: none;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Login with Your Face</h1>
+    
+    <video id="video" autoplay muted></video>
+    <canvas id="canvas"></canvas>
+    
+    <div>
+        <button id="recognize">Recognize Face</button>
+    </div>
+    
+    <p>Don't have an account? <a href="register.html">Register here</a></p>
+    
+    <script>
+        // Load face-api.js models - CORRECTED PATH
+        async function loadModels() {
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                console.log("Models loaded successfully");
+                startVideo();
+            } catch (error) {
+                console.error("Error loading models:", error);
+                alert("Error loading face recognition models. Please check console.");
+            }
+        }
+        
+        // Start video stream
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    const video = document.getElementById('video');
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    console.error("Camera error:", err);
+                    alert("Could not access camera. Please ensure permissions are granted.");
+                });
+        }
+        
+        // Recognize face - IMPROVED RECOGNITION LOGIC
+        document.getElementById('recognize').addEventListener('click', async () => {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const displaySize = { width: video.width, height: video.height };
+            
+            faceapi.matchDimensions(canvas, displaySize);
+            
+            try {
+                const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                
+                if (!detection) {
+                    alert("No face detected. Please try again.");
+                    return;
+                }
+                
+                canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                faceapi.draw.drawDetections(canvas, detection);
+                faceapi.draw.drawFaceLandmarks(canvas, detection);
+                
+                // Get all registered users from localStorage
+                const registeredUsers = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key !== "debug" && key !== "loglevel") { // Skip non-user items
+                        try {
+                            const user = JSON.parse(localStorage.getItem(key));
+                            if (user.faceDescriptor) {
+                                registeredUsers.push(user);
+                            }
+                        } catch (e) {
+                            console.warn("Could not parse user data for key:", key);
+                        }
+                    }
+                }
+                
+                if (registeredUsers.length === 0) {
+                    alert("No registered users found. Please register first.");
+                    return;
+                }
+                
+                // Create labeled descriptors for face recognition
+                const labeledDescriptors = registeredUsers.map(user => 
+                    new faceapi.LabeledFaceDescriptors(
+                        user.username, 
+                        [new Float32Array(user.faceDescriptor)]
+                    )
+                );
+                
+                // Create face matcher
+                const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+                
+                // Find best match
+                const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+                
+                console.log("Best match:", bestMatch);
+                
+                if (bestMatch.label !== "unknown") {
+                    // Store current user in session
+                    const matchedUser = registeredUsers.find(u => u.username === bestMatch.label);
+                    sessionStorage.setItem('currentUser', JSON.stringify(matchedUser));
+                    alert(`Welcome back, ${bestMatch.label}!`);
+                    window.location.href = "dashboard.html";
+                } else {
+                    alert("No matching face found. Please register first.");
+                }
+                
+            } catch (error) {
+                console.error("Recognition error:", error);
+                alert("Error during face recognition. Please try again.");
+            }
+        });
+        
+        // Initialize
+        window.addEventListener('load', loadModels);
+    </script>
+</body>
+</html>
